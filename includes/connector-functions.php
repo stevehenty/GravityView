@@ -219,20 +219,24 @@ function gravityview_get_form_id( $view_id ) {
 	 * @param int|boolean $id The ID of the connected form, if exists. Otherwise, false.
 	 * @param int $view_id The ID of the View we're fetching the form for
 	 */
-	$ids = apply_filters('gravityview/view/get_form_id', $id, apply_filters( 'gravityview/view/' . $view_id . '/get_form_id', $id, $view_id ) );
+	$ids = apply_filters( 'gravityview/view/get_form_id', $id, apply_filters( 'gravityview/view/' . $view_id . '/get_form_id', $id, $view_id ) );
 
 	// Make sure all the IDs are numbers after the filter
-	$ids = array_filter( (array)$ids, 'is_numeric' );
+	$ids = array_filter( (array) $ids, 'is_numeric' );
 
+	// All ids that are Negative turns to 0
 	$ids = array_map( 'intval', $ids );
 
+	// Remove all 0 IDs
+	$ids = array_filter( $ids );
+
 	// If no IDs were valid, return false
-	$ids = empty( $ids ) ? false : $ids;
+	if ( empty( $ids ) ) {
+		return false;
+	}
 
-	// If only one ID, use the number
-	$ids = ( sizeof( $ids ) === 1 ) ? array_pop( $ids ) : $ids;
-
-	return $ids;
+	// If only one ID, use the first element
+	return reset( $ids );
 }
 
 function gravityview_get_template_id( $post_id ) {
