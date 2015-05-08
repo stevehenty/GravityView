@@ -204,12 +204,35 @@ function gravityview_get_connected_views( $form_id ) {
 /**
  * Get the connected form ID from a View ID
  *
+ * @filter gravityview/view/get_form_id Modify the form ID for a View. {@since 1.8}
+ * @filter gravityview/view/{View ID}/get_form_id Modify the form ID for a View. {@since 1.8}
+ *
  * @param int $view_id ID of the View you want the form of
  *
- * @return int
+ * @return int|int[]
  */
 function gravityview_get_form_id( $view_id ) {
-	return GVCommon::get_meta_form_id( $view_id );
+
+	$id = GVCommon::get_meta_form_id( $view_id );
+
+	/**
+	 * @param int|boolean $id The ID of the connected form, if exists. Otherwise, false.
+	 * @param int $view_id The ID of the View we're fetching the form for
+	 */
+	$ids = apply_filters('gravityview/view/get_form_id', $id, apply_filters( 'gravityview/view/' . $view_id . '/get_form_id', $id, $view_id ) );
+
+	// Make sure all the IDs are numbers after the filter
+	$ids = array_filter( (array)$ids, 'is_numeric' );
+
+	$ids = array_map( 'intval', $ids );
+
+	// If no IDs were valid, return false
+	$ids = empty( $ids ) ? false : $ids;
+
+	// If only one ID, use the number
+	$ids = ( sizeof( $ids ) === 1 ) ? array_pop( $ids ) : $ids;
+
+	return $ids;
 }
 
 function gravityview_get_template_id( $post_id ) {
