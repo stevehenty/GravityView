@@ -2,6 +2,8 @@
 
 /**
  * Modify option field type by extending this class
+ * @todo Convert to using the GFAddon settings methods
+ * @see GFAddon::settings_radio()
  */
 abstract class GravityView_FieldType {
 

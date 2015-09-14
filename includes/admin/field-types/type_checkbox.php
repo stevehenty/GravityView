@@ -24,8 +24,8 @@ class GravityView_FieldType_checkbox extends GravityView_FieldType {
 			</td>
 			<td>
 				<label>
-				<?php $this->render_input( $override_input ); ?>
-				&nbsp;<?php echo $this->get_field_label() . $this->get_tooltip() . $this->get_field_desc(); ?>
+					<?php $this->render_input( $override_input ); ?>
+					&nbsp;<?php echo $this->get_field_label() . $this->get_tooltip() . $this->get_field_desc(); ?>
 				</label>
 			</td>
 
@@ -47,10 +47,30 @@ class GravityView_FieldType_checkbox extends GravityView_FieldType {
 			return;
 		}
 
-		?>
-		<input name="<?php echo esc_attr( $this->name ); ?>" type="hidden" value="0" />
-       	<input name="<?php echo esc_attr( $this->name ); ?>" id="<?php echo $this->get_field_id(); ?>" type="checkbox" value="1" <?php checked( $this->value, '1', true ); ?> />
-       	<?php
+		if( !empty( $this->field['options'] )) {
+			?>
+			<ul class="gv-label-checkboxes">
+			<?php
+			foreach ( $this->field['options'] as $value => $label ) { ?>
+				<li><input name="<?php printf( '%s[%s]', esc_attr( $this->name ), esc_attr( $value ) ); ?>" value="0" type="hidden" />
+					<label class="<?php echo $this->get_label_class(); ?>">
+						<input name="<?php printf( '%s[%s]', esc_attr( $this->name ), esc_attr( $value ) ); ?>"
+						       id="<?php echo $this->get_field_id(); ?>-<?php echo esc_attr( $value ); ?>" type="checkbox"
+						       value="1" <?php checked( ! empty( $this->value[ $value ] ), true, true ); ?> />&nbsp;<?php echo esc_html( $label ); ?>
+					</label>
+				</li>
+				<?php
+			}
+			?>
+			</ul>
+			<?php
+		} else {
+			?>
+			<input name="<?php echo esc_attr( $this->name ); ?>" type="hidden" value="0"/>
+			<input name="<?php echo esc_attr( $this->name ); ?>" id="<?php echo $this->get_field_id(); ?>"
+			       type="checkbox" value="1" <?php checked( $this->value, '1', true ); ?> />
+			<?php
+		}
 	}
 
 }
