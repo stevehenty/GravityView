@@ -1119,12 +1119,13 @@ function gravityview_get_map_link( $address ) {
  * @return string Field output. If empty value and hide empty is true, return empty.
  */
 function gravityview_field_output( $passed_args ) {
+
 	$defaults = array(
 		'entry' => null,
 		'field' => null,
 		'form' => null,
 		'hide_empty' => true,
-		'markup' => '<div id="{{ field_id }}" class="{{ class }}">{{label}}{{value}}</div>',
+		'markup' => '<{{wrapper_tag}} id="{{ field_id }}" class="{{ class }}">{{label}}{{value}}</{{wrapper_tag}}>',
 		'label_markup' => '',
 		'wpautop' => false,
 		'zone_id' => null,
@@ -1153,6 +1154,7 @@ function gravityview_field_output( $passed_args ) {
 	 * @since 1.11
 	 */
 	$context = array(
+		'wrapper_tag' => 'div',
 		'value' => '',
 		'width' => '',
 		'width:style' => '',
@@ -1161,6 +1163,28 @@ function gravityview_field_output( $passed_args ) {
 		'class' => '',
 		'field_id' => '',
 	);
+
+	if( ! empty( $args['field']['wrapper_tag'] ) ) {
+
+		$wrapper_tag = $args['field']['wrapper_tag'];
+
+		$supported_wrapper_tags = array(
+			'div',
+			'span',
+			'p',
+			'h1',
+			'h2',
+			'h3',
+			'h4',
+			'small',
+			'em',
+		);
+
+		if( $wrapper_tags && is_array( $wrapper_tags ) && in_array( $wrapper_tag, $supported_wrapper_tags ) ) {
+			$context['wrapper_tag'] = $wrapper_tag;
+		}
+		unset( $supported_wrapper_tags );
+	}
 
 	$context['value'] = gv_value( $entry, $args['field'] );
 
@@ -1221,26 +1245,26 @@ function gravityview_field_output( $passed_args ) {
 	 * Loop through each of the tags to replace and replace both `{{tag}}` and `{{ tag }}` with the values
 	 * @since 1.11
 	 */
-	foreach ( $context as $tag => $value ) {
+	foreach ( $context as $key => $value ) {
 
 		// If the tag doesn't exist just skip it
-		if ( false === strpos( $html, $open_tag . $tag . $close_tag ) && false === strpos( $html, $open_tag . ' ' . $tag . ' ' . $close_tag ) ){
+		if ( false === strpos( $html, $open_tag . $key . $close_tag ) && false === strpos( $html, $open_tag . ' ' . $key . ' ' . $close_tag ) ){
 			continue;
 		}
 
 		// Array to search
 		$search = array(
-			$open_tag . $tag . $close_tag,
-			$open_tag . ' ' . $tag . ' ' . $close_tag,
+			$open_tag . $key . $close_tag,
+			$open_tag . ' ' . $key . ' ' . $close_tag,
 		);
 
 		/**
-		 * `gravityview/field_output/context/{$tag}` Allow users to filter content on context
+		 * `gravityview/field_output/context/{$key}` Allow users to filter content on context
 		 * @since 1.11
-		 * @param string $value The content to be shown instead of the {{tag}} placeholder
+		 * @param string $value The content to be shown instead of the {{key}} placeholder
 		 * @param array $args Arguments passed to the function
 		 */
-		$value = apply_filters( 'gravityview/field_output/context/' . $tag, $value, $args );
+		$value = apply_filters( 'gravityview/field_output/context/' . $key, $value, $args );
 
 		// Finally do the replace
 		$html = str_replace( $search, $value, $html );
@@ -1259,7 +1283,7 @@ function gravityview_field_output( $passed_args ) {
 	$html = apply_filters( 'gravityview/field_output/html', $html, $args );
 
 	// Just free up a tiny amount of memory
-	unset( $value, $args, $passed_args, $entry, $context, $search, $open_tag, $tag, $close_tag );
+	unset( $value, $args, $passed_args, $entry, $context, $search, $open_tag, $key, $close_tag );
 
 	return $html;
 }

@@ -23,7 +23,7 @@ class GravityView_Render_Settings {
 	 * @param  string      $input_type  (textarea, list, select, etc.)
 	 * @return array       Array of field options with `label`, `value`, `type`, `default` keys
 	 */
-	public static function get_default_field_options( $field_type, $template_id, $field_id, $context, $input_type ) {
+	public static function get_default_field_options( $field_type = 'field', $template_id = '', $field_id = '', $context = '', $input_type = '' ) {
 
 		$field_options = array();
 
@@ -61,6 +61,24 @@ class GravityView_Render_Settings {
 					'options' => self::get_cap_choices( $template_id, $field_id, $context, $input_type ),
 					'class' => 'widefat',
 					'value' => 'read',
+				),
+				'tag_wrapper' => array(
+					'type' => 'select',
+					'label' => __('Container Tag (Advanced)'),
+					'desc' => __('Specify an alternate HTML tag that will surround this field.'),
+					'choices' => array(
+						'' => 'Default',
+						'div' => 'div',
+						'span' => 'span',
+						'p' => 'p',
+						'h1' => 'h1',
+						'h2' => 'h2',
+						'h3' => 'h3',
+						'h4' => 'h4',
+						'small' => 'small',
+						'em' => 'em',
+					),
+					'value' => 'div',
 				),
 			);
 

@@ -30,14 +30,15 @@
 				'hide_empty' => $this->atts['hide_empty'],
 			);
 			foreach ( $fields as $field ) {
-				$title_args['field'] = $field;
 				if ( 0 === $i ) {
-					$title_args['markup'] = '<h3 id="{{ field_id }}" class="{{class}}">{{label}}{{value}}</h3>';
-					echo gravityview_field_output( $title_args );
+					if( empty( $title_args['field']['wrapper_tag'] ) ) {
+						$title_args['field']['wrapper_tag'] = 'h3';
+					}
 				} else {
 					$title_args['wpautop'] = true;
-					echo gravityview_field_output( $title_args );
 				}
+				$title_args['field'] = $field;
+				echo gravityview_field_output( $title_args );
 				$i++;
 			}
 		}
