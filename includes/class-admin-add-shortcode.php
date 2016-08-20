@@ -36,7 +36,7 @@ class GravityView_Admin_Add_Shortcode {
 	 * check if screen post editor and is not related with post type 'gravityview'
 	 *
 	 * @access public
-	 * @return void
+	 * @return bool
 	 */
 	function is_post_editor_screen() {
 		global $current_screen, $pagenow;
@@ -51,11 +51,19 @@ class GravityView_Admin_Add_Shortcode {
 	 * @return void
 	 */
 	function add_shortcode_button() {
+
+		/**
+		 * @since 1.15.3
+		 */
+		if( ! GVCommon::has_cap( array( 'publish_gravityviews' ) ) ) {
+			return;
+		}
+
 		if( !$this->is_post_editor_screen() ) {
 			return;
 		}
 		?>
-		<a href="#TB_inline?width=480&amp;inlineId=select_gravityview_view&amp;width=600&amp;height=800" class="thickbox button gform_media_link" id="add_gravityview" title="<?php esc_attr_e("Add a Gravity Forms View", 'gravityview'); ?>"><span class="icon gv-icon-astronaut-head"></span><?php esc_html_e( 'Add View', 'gravityview' ); ?></a>
+		<a href="#TB_inline?width=600&amp;height=800&amp;inlineId=select_gravityview_view" class="thickbox hide-if-no-js button gform_media_link" id="add_gravityview" title="<?php esc_attr_e("Insert View", 'gravityview'); ?>"><span class="icon gv-icon-astronaut-head"></span><?php esc_html_e( 'Add View', 'gravityview' ); ?></a>
 		<?php
 
 	}
@@ -144,7 +152,6 @@ class GravityView_Admin_Add_Shortcode {
 	 * Enqueue scripts and styles
 	 *
 	 * @access public
-	 * @param mixed $hook
 	 * @return void
 	 */
 	function add_scripts_and_styles() {

@@ -9,25 +9,32 @@ class GravityView_Widget {
 	 * Widget admin label
 	 * @var string
 	 */
-	protected $widget_label;
+	protected $widget_label = '';
 
 	/**
-	 * Widget description
+	 * Widget description, shown on the "+ Add Widget" picker
 	 * @var  string
 	 */
-	protected $widget_description;
+	protected $widget_description = '';
+
+	/**
+	 * Widget details, shown in the widget lightbox
+	 * @since 1.8
+	 * @var  string
+	 */
+	protected $widget_subtitle = '';
 
 	/**
 	 * Widget admin id
 	 * @var string
 	 */
-	protected $widget_id;
+	protected $widget_id = '';
 
 	/**
 	 * default configuration for header and footer
 	 * @var array
 	 */
-	protected $defaults;
+	protected $defaults = array();
 
 	/**
 	 * Widget admin advanced settings
@@ -88,9 +95,9 @@ class GravityView_Widget {
 		$settings = array();
 
 		/**
-		 * Enable custom class for widgets
-		 * @param boolean False by default. Return true if you want to enable.
-		 * @param GravityView_Widget Current instance of GravityView_Widget
+		 * @filter `gravityview/widget/enable_custom_class` Enable custom CSS class settings for widgets
+		 * @param boolean $enable_custom_class False by default. Return true if you want to enable.
+		 * @param GravityView_Widget $this Current instance of GravityView_Widget
 		 */
 		$enable_custom_class = apply_filters('gravityview/widget/enable_custom_class', false, $this );
 
@@ -109,6 +116,13 @@ class GravityView_Widget {
 		return $settings;
 	}
 
+    /**
+     * @return string
+     */
+    public function get_widget_id() {
+        return $this->widget_id;
+    }
+
 	/**
 	 * Get the widget settings
 	 * @return array|null   Settings array; NULL if not set
@@ -123,10 +137,13 @@ class GravityView_Widget {
 	 * @return mixed|null      Value of the setting; NULL if not set
 	 */
 	public function get_setting( $key ) {
-		if( isset( $this->settings ) && is_array( $this->settings ) ) {
+		$setting = NULL;
 
-			return isset( $this->settings[ $key ] ) ? $this->settings[ $key ] : NULL;
+		if( isset( $this->settings ) && is_array( $this->settings ) ) {
+			$setting = isset( $this->settings[ $key ] ) ? $this->settings[ $key ] : NULL;
 		}
+
+		return $setting;
 	}
 
 	/**
@@ -159,7 +176,7 @@ class GravityView_Widget {
 	function add_shortcode( $run_on_singular = true ) {
 		global $post;
 
-		if( is_admin() ) { return; }
+		if( GravityView_Plugin::is_admin() ) { return; }
 
 		if( empty( $this->shortcode_name ) ) { return; }
 
@@ -192,6 +209,7 @@ class GravityView_Widget {
 		$widgets[ $this->widget_id ] = array(
 			'label' => $this->widget_label ,
 			'description' => $this->widget_description,
+			'subtitle' => $this->widget_subtitle,
 		);
 		return $widgets;
 	}
@@ -202,7 +220,7 @@ class GravityView_Widget {
 	 * @access protected
 	 * @param array $options (default: array())
 	 * @param string $template (default: '')
-	 * @return void
+	 * @return array
 	 */
 	public function assign_widget_options( $options = array(), $template = '', $widget = '' ) {
 
@@ -214,7 +232,11 @@ class GravityView_Widget {
 	}
 
 
-	/** Frontend logic */
+	/**
+	 * Frontend logic
+	 *
+	 * @return void
+	 */
 	public function render_frontend( $widget_args, $content = '', $context = '') {
 		// to be defined by child class
 		if( !$this->pre_render_frontend() ) {
@@ -224,6 +246,7 @@ class GravityView_Widget {
 
 	/**
 	 * General validations when rendering the widget
+	 * @return boolean True: render frontend; False: don't render frontend
 	 */
 	public function pre_render_frontend() {
 		$gravityview_view = GravityView_View::getInstance();
@@ -233,7 +256,14 @@ class GravityView_Widget {
 			return false;
 		}
 
-		if( apply_filters( 'gravityview/widget/hide_until_searched', $gravityview_view->hide_until_searched, $this ) ) {
+		/**
+		 * @filter `gravityview/widget/hide_until_searched` Modify whether to hide content until search
+		 * @param boolean $hide_until_searched Hide until search?
+		 * @param GravityView_Widget $this Widget instance
+		 */
+		$hide_until_search = apply_filters( 'gravityview/widget/hide_until_searched', $gravityview_view->hide_until_searched, $this );
+
+		if( $hide_until_search ) {
 			do_action('gravityview_log_debug', sprintf( '%s[render_frontend]: Hide View data until search is performed', get_class($this)) );
 			return false;
 		}

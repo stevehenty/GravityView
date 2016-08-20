@@ -1,4 +1,4 @@
-/* global ajaxurl,gvGlobals,console,alert,form,gfMergeTagsObj */
+/* global ajaxurl,gvGlobals,console,alert,form,gfMergeTagsObj,jQuery */
 /**
  * Custom js script at Add New / Edit Views screen
  *
@@ -9,8 +9,43 @@
  * @copyright Copyright 2014, Katz Web Services, Inc.
  *
  * @since 1.0.0
+ *
+ * @typedef {{
+ *   label_cancel: string
+ *   label_continue: string,
+ *   loading_text: string,
+ *   nonce: string,
+ *   label_close: string,
+ *   field_loaderror: string,
+ *   cookiepath: string,
+ *   label_viewname: string,
+ *   label_publisherror: string,
+ * }} gvGlobals
+ *
+ * @typedef {{
+ *  target: element,
+ *  relatedTarget: element,
+ *  which: number,
+ *  pageX: number,
+ *  pageY: number,
+ *  metaKey: string,
+ *  altKey: boolean,
+ *  cancelable: bool,
+ *  char: string,
+ *  charCode: number,
+ *  clientX: number,
+ *  clientY: number,
+ *  ctrlKey: bool,
+ *  currentTarget: element,
+ *  data: object,
+ *  keyCode: number,
+ *  namespace: string,
+ *  result: object,
+ *  type: string,
+ *  preventDefault: function,
+ *  stopImmediatePropagation: function
+ * }} jQueryEvent
  */
-
 
 (function( $ ) {
 
@@ -21,6 +56,18 @@
 		// Checks if the execution is on a Start Fresh context
 		startFreshStatus: false,
 
+		/**
+		 * @since 1.17.3
+		 * @type {bool} Whether the alt (modifier) key is currently being clicked
+		 */
+		altKey: false,
+
+		/**
+		 * @since 1.14
+		 * @type {int} The width of the modal dialogs to use for field and widget settings
+		 */
+		dialogWidth: 650,
+
 		init: function () {
 
 			// short tag
@@ -28,6 +75,8 @@
 
 			//select form dropdown
 			vcfg.gvSelectForm = $( '#gravityview_form_id' );
+
+			vcfg.gvSwitchView = $('a[href="#gv_switch_view"]');
 
 			//current form selection
 			vcfg.currentFormId = vcfg.gvSelectForm.val();
@@ -38,6 +87,9 @@
 			// Start bind to $('body')
 			$( 'body' )
 
+				// Track modifier keys being clicked
+				.on( 'keydown keyup', vcfg.altKeyListener )
+
 				// select form
 				.on( 'change', '#gravityview_form_id', vcfg.formChange )
 
@@ -45,7 +97,7 @@
 				.on( 'click', 'a[href="#gv_start_fresh"]', vcfg.startFresh )
 
 				// when saving the View, try to create form before proceeding
-                .on( 'click', '#publish, #save-post', vcfg.processFormSubmit )
+				.on( 'click', '#publish, #save-post', vcfg.processFormSubmit )
 
 				// Hover overlay show/hide
 				.on( 'click', ".gv-view-types-hover", vcfg.selectTemplateHover )
@@ -81,16 +133,49 @@
 				.on( 'click', ".gv-field-controls a[href='#settings']", vcfg.openFieldSettings )
 
 				// Double-clicking a field/widget label opens settings
-				.on( 'dblclick', ".gv-fields", vcfg.openFieldSettings );
+				.on( 'dblclick', ".gv-fields", vcfg.openFieldSettings )
+
+				// Update checkbox visibility when having dependency checkboxes
+				.on( 'change', ".gv-setting-list", vcfg.toggleCheckboxes );
 
 			// End bind to $('body')
 
 		},
 
 		/**
+		 * Listen for whether the altKey is being held down. If so, we modify some behavior.
+		 *
+		 * This is necessary here because clicking on <select> doesn't register the altKey properly
+		 *
+		 * @since 1.17.3
+		 *
+		 * @param {jQuery} e
+		 */
+		altKeyListener: function( e ) {
+			viewConfiguration.altKey = e.altKey;
+		},
+
+		/**
+		 * Show/hide checkboxes that have visibility conditionals
+		 * @see GravityView_FieldType_checkboxes
+		 * @param  {jQueryEvent} e
+		 */
+		toggleCheckboxes: function (  e ) {
+
+			var $parent = $( this );
+			$conditionals = $( this ).find( '[data-requires]' );
+
+			$conditionals.each( function ()  {
+				var requires = $( this ).data( 'requires' );
+				var $checkbox = $parent.find(':checkbox[name$="['+requires+']"]');
+				$( this ).toggle( $checkbox.is(':checked') );
+			});
+		},
+
+		/**
 		 * Close all tooltips if user clicks outside the tooltip or presses escape key
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * @param  {jQueryEvent} e [description]
+		 * @return {bool}   [description]
 		 */
 		closeTooltips: function ( e ) {
 
@@ -168,7 +253,7 @@
 
 		/**
 		 * Toggle the dashicon link representing whether the field is being used as a link to the single entry
-		 * @param  {object} e jQuery event object
+		 * @param  {jQueryEvent} e jQuery event object
 		 * @return {void}
 		 */
 		toggleShowAsEntry: function ( e ) {
@@ -183,9 +268,7 @@
 
 		/**
 		 * Select the text of an input field on click
-		 * @filter default text
-		 * @action default text
-		 * @param  {[type]}    e     [description]
+		 * @param  {jQueryEvent}    e     [description]
 		 * @return {[type]}          [description]
 		 */
 		selectText: function ( e ) {
@@ -230,7 +313,7 @@
 		 */
 		togglePreviewButton: function() {
 
-			var preview_button = $('#preview-action .button');
+			var preview_button = $('#preview-action').find('.button');
 
 			if( '' === viewConfiguration.gvSelectForm.val() ) {
 				preview_button.hide();
@@ -247,6 +330,7 @@
 			vcfg.currentFormId = '';
 			vcfg.togglePreviewButton();
 			$( "#gravityview_view_config, #gravityview_select_template, #gravityview_sort_filter, .gv-form-links" ).hide();
+			viewGeneralSettings.metaboxObj.hide();
 
 		},
 
@@ -275,7 +359,7 @@
 
 			if ( $templates.is( ':visible' ) ) {
 
-				$( 'a[href=#gv_switch_view]' ).text( function () {
+				viewConfiguration.gvSwitchView.text( function () {
 					return $( this ).attr( 'data-text-backup' );
 				} );
 
@@ -283,7 +367,7 @@
 
 			} else {
 
-				$( 'a[href=#gv_switch_view]' ).attr( 'data-text-backup', function () {
+				viewConfiguration.gvSwitchView.attr( 'data-text-backup', function () {
 					return $( this ).text();
 				} ).text( gvGlobals.label_cancel );
 
@@ -295,6 +379,10 @@
 			$( "#gravityview_select_template" ).slideDown( 150 );
 		},
 
+		/**
+		 * Triggered when the Start Fresh button has been clicked
+		 * @param {jQueryEvent} e
+		 */
 		startFresh: function ( e ) {
 			e.preventDefault();
 			var vcfg = viewConfiguration;
@@ -319,7 +407,8 @@
 
 			// Reset the selected form value
 			$( '#gravityview_form_id' ).val( '' );
-			$( 'a[href=#gv_switch_view]' ).hide();
+
+			vcfg.gvSwitchView.hide();
 
 			// show templates
 			vcfg.templateFilter( 'preset' );
@@ -333,11 +422,17 @@
 
 		/**
 		 * The Data Source dropdown has been changed. Show alert dialog or process.
+		 * @param {jQueryEvent} e
 		 * @return void
 		 */
 		formChange: function ( e ) {
 			e.preventDefault();
 			var vcfg = viewConfiguration;
+
+			// Holding down on the alt key while switching forms allows you to change forms without resetting configurations
+			if( vcfg.altKey ) {
+				return;
+			}
 
 			vcfg.startFreshStatus = false;
 
@@ -364,7 +459,7 @@
 				vcfg.showViewTypeMetabox();
 				vcfg.getAvailableFields();
 				vcfg.getSortableFields();
-				$( 'a[href=#gv_switch_view]' ).fadeOut( 150 );
+				vcfg.gvSwitchView.fadeOut( 150 );
 			}
 		},
 
@@ -422,9 +517,9 @@
 				resizable: false,
 				width: function () {
 
-					// If the window is wider than 550px, use 550
-					if ( $( window ).width() > 550 ) {
-						return 550;
+					// If the window is wider than {vcfg.dialogWidth}px, use vcfg.dialogWidth
+					if ( $( window ).width() > vcfg.dialogWidth ) {
+						return vcfg.dialogWidth;
 					}
 
 					// Otherwise, return the window width, less 10px
@@ -439,7 +534,7 @@
 
 					vcfg.setCustomLabel( thisDialog );
 
-					$( '#wpwrap > .gv-overlay' ).fadeOut( 'fast', function () {
+					$( '#wpwrap').find('> .gv-overlay' ).fadeOut( 'fast', function () {
 						$( this ).remove();
 					} );
 				},
@@ -451,27 +546,28 @@
 
 		/**
 		 * Update the field display to show the custom label while editing
-		 * @param {jQuery DOM} dialog The dialog object
+		 * @param {jQuery} dialog The dialog object
 		 */
 		setCustomLabel: function ( dialog ) {
 
 			// Does the field have a custom label?
 			var $custom_label = $( '[name*=custom_label]', dialog );
 
-			var show_label = $( '[name*=show_label]', dialog ).is( ':checked' );
-
 			var $label = dialog.parents( '.gv-fields' ).find( '.gv-field-label' );
 
 			// If there's a custom title, use it for the label.
-			if ( $custom_label.length && $custom_label.val().trim().length && show_label ) {
+			if ( $custom_label.length ) {
 
-				$label.text( $custom_label.val().trim() );
+				var custom_label_text = $custom_label.val().trim();
 
-			} else {
-
-				// If there's no custom title, then use the original
-				// @see GravityView_Admin_View_Item::getOutput()
-				$label.html( $label.attr( 'data-original-title' ) );
+				// Make sure the custom label isn't empty
+				if( custom_label_text.length > 0 ) {
+					$label.html( custom_label_text );
+				} else {
+					// If there's no custom title, then use the original
+					// @see GravityView_Admin_View_Item::getOutput()
+					$label.html( $label.attr( 'data-original-title' ) );
+				}
 
 			}
 
@@ -479,9 +575,9 @@
 
 		/**
 		 * @todo Combine with the embed shortcode dropdown
-		 * @param  {[type]} context [description]
-		 * @param  {[type]} id      [description]
-		 * @return {[type]}         [description]
+		 * @param  {string} context Context (multiple, single, edit)
+		 * @param  {string} id      Template ID
+		 * @return {void}
 		 */
 		getSortableFields: function ( context, id ) {
 
@@ -501,15 +597,39 @@
 				data.form_id = vcfg.gvSelectForm.val();
 			}
 
-			$.post( ajaxurl, data, function ( response ) {
-				if ( response !== 'false' && response !== '0' ) {
-					$( "#gravityview_sort_field" ).empty().append( response ).prop( 'disabled', null );
+			$.post(ajaxurl, data, function (response) {
+				if (response !== 'false' && response !== '0') {
+					$("#gravityview_sort_field").empty().append(response).prop('disabled', null);
 				}
-			} );
+			});
 
 		},
 
+		/**
+		 * Hide metaboxes related to view configuration.
+		 * @return {void}
+		 */
+		hideViewConfig: function () {
+			$( "#gravityview_view_config" ).slideUp( 150 );
 
+			$( document ).trigger( 'gv_admin_views_hideViewConfig' );
+		},
+
+		showViewConfig: function () {
+
+			$( '#gravityview_view_config' ).slideDown( 150 );
+
+			viewGeneralSettings.metaboxObj.show();
+			viewConfiguration.toggleDropMessage();
+			viewConfiguration.init_droppables();
+			viewConfiguration.init_tooltips();
+
+			$( document ).trigger( 'gv_admin_views_showViewConfig' );
+		},
+
+		/**
+		 * @param {jQueryEvent} e
+		 */
 		switchView: function ( e ) {
 			e.preventDefault();
 			e.stopImmediatePropagation();
@@ -535,6 +655,9 @@
 			} );
 		},
 
+		/**
+		 * @param {jQueryEvent} e
+		 */
 		selectTemplate: function ( e ) {
 			var vcfg = viewConfiguration;
 
@@ -559,7 +682,6 @@
 			}
 		},
 
-
 		selectTemplateContinue: function () {
 
 			var vcfg = viewConfiguration, selectedTemplateId = vcfg.wantedTemplate.attr( "data-templateid" );
@@ -572,7 +694,7 @@
 			$parent.parents( ".gv-grid" ).find( ".gv-view-types-module" ).removeClass( 'gv-selected' );
 			$parent.addClass( 'gv-selected' );
 
-			$( '#wpcontent,.gv-fields' ).addClass( 'gv-wait' );
+			vcfg.waiting('start');
 
 			// check for start fresh context
 			if ( vcfg.startFreshStatus ) {
@@ -590,7 +712,7 @@
 				//change view configuration active areas
 				vcfg.updateActiveAreas( selectedTemplateId );
 
-				$( 'a[href=#gv_switch_view]' ).fadeIn( 150 );
+				vcfg.gvSwitchView.fadeIn( 150 );
 				vcfg.toggleViewTypeMetabox();
 
 			}
@@ -599,7 +721,7 @@
 
 		/**
 		 * When clicking the hover overlay, select the template by clicking the #gv_select_template button
-		 * @param  object    e     jQuery event object
+		 * @param  {jQueryEvent}    e     jQuery event object
 		 * @return void
 		 */
 		selectTemplateHover: function ( e ) {
@@ -617,7 +739,7 @@
 		 * Display a screenshot of the current template. Not currently in use.
 		 *
 		 * @todo REMOVE ?
-		 * @param  object    e     jQuery event object
+		 * @param  {jQueryEvent}    e     jQuery event object
 		 * @return void
 		 */
 		previewTemplate: function ( e ) {
@@ -627,13 +749,13 @@
 			parent.find( ".gv-template-preview" ).dialog( {
 				dialogClass: 'wp-dialog gv-dialog',
 				appendTo: $( "#gravityview_select_template" ),
-				width: 550,
+				width: viewConfiguration.dialogWidth,
 				open: function () {
 					$( '<div class="gv-overlay" />' ).prependTo( '#wpwrap' );
 				},
 				close: function () {
 					$( this ).dialog( "option", "appendTo", parent );
-					$( '#wpwrap > .gv-overlay' ).fadeOut( 'fast', function () {
+					$( '#wpwrap' ).find('> .gv-overlay' ).fadeOut( 'fast', function () {
 						$( this ).remove();
 					} );
 				},
@@ -650,6 +772,9 @@
 
 		},
 
+		/**
+		 * @param {string} template The template ID
+		 */
 		updateActiveAreas: function ( template ) {
 			var vcfg = viewConfiguration;
 
@@ -661,20 +786,12 @@
 				nonce: gvGlobals.nonce
 			};
 
-			$.post( ajaxurl, data, function ( response ) {
-				if ( response ) {
-					var content = $.parseJSON( response );
-					$( '#directory-header-widgets' ).html( content.header );
-					$( '#directory-footer-widgets' ).html( content.footer );
-					$( '#directory-active-fields' ).append( content.directory );
-					$( '#single-active-fields' ).append( content.single );
-					$( '#wpcontent,.gv-fields' ).removeClass( 'gv-wait' );
-					vcfg.showViewConfig();
-				}
-			} );
-
+			vcfg.updateViewConfig( data );
 		},
 
+		/**
+		 * @param {string} template The template ID
+		 */
 		getPresetFields: function ( template ) {
 			var vcfg = viewConfiguration;
 
@@ -686,6 +803,18 @@
 				nonce: gvGlobals.nonce
 			};
 
+			vcfg.updateViewConfig( data );
+		},
+
+		/**
+		 * POST to AJAX and insert the returned field HTML into zone DOM
+		 *
+		 * @since 1.17.2
+		 * @param {object} data `action`, `template_id` and `nonce` keys
+		 */
+		updateViewConfig: function ( data ) {
+			var vcfg = viewConfiguration;
+			
 			$.post( ajaxurl, data, function ( response ) {
 				if ( response ) {
 					var content = $.parseJSON( response );
@@ -693,33 +822,26 @@
 					$( '#directory-footer-widgets' ).html( content.footer );
 					$( '#directory-active-fields' ).append( content.directory );
 					$( '#single-active-fields' ).append( content.single );
-					$( '#wpcontent,.gv-fields' ).removeClass( 'gv-wait' );
 					vcfg.showViewConfig();
+					vcfg.waiting('stop');
 				}
 			} );
-
-
 		},
 
 		/**
-		 * Hide metaboxes related to view configuration.
-		 * @return {void}
+		 * Toggle the "loading" indicator
+		 * @since 1.16.5
+		 * @param {string} action "start" or "stop"
 		 */
-		hideViewConfig: function () {
-			$( "#gravityview_view_config,#gravityview_sort_filter" ).slideUp( 150 );
+		waiting: function( action ) {
 
-			$( document ).trigger( 'gv_admin_views_hideViewConfig' );
-		},
+			$containers = $( '#wpwrap,.gv-fields' );
 
-		showViewConfig: function () {
-
-			$( "#gravityview_view_config, #gravityview_sort_filter" ).slideDown( 150 );
-
-			viewConfiguration.toggleDropMessage();
-			viewConfiguration.init_droppables();
-			viewConfiguration.init_tooltips();
-
-			$( document ).trigger( 'gv_admin_views_showViewConfig' );
+			if( 'start' === action ) {
+				$containers.addClass('gv-wait');
+			} else {
+				$containers.removeClass('gv-wait');
+			}
 		},
 
 
@@ -791,8 +913,8 @@
 
 		/**
 		 * Fetch the Available Fields for a given Form ID or Preset Template ID
-		 * @param  null|string    preset
-		 * @param  string    templateid      The "slug" of the View template
+		 * @param  {null|string}    preset
+		 * @param  {string}    templateid      The "slug" of the View template
 		 * @return void
 		 */
 		getAvailableFields: function ( preset, templateid ) {
@@ -847,7 +969,7 @@
 
 		/**
 		 * When a field is clicked in the field picker, add the field or add all fields
-		 * @param  {[type]} e [description]
+		 * @param  {jQueryEvent} e [description]
 		 * @return {void}
 		 */
 		startAddField: function ( e ) {
@@ -864,7 +986,7 @@
 
 		/**
 		 * Add all the fields available at once. Bam!
-		 * @param  object    clicked jQuery object of the clicked "+ Add All Fields" link
+		 * @param  {object}    clicked jQuery object of the clicked "+ Add All Fields" link
 		 */
 		addAllFields: function ( clicked ) {
 
@@ -879,7 +1001,8 @@
 
 		/**
 		 * Drop selected field in the active area
-		 * @param  object    e     jQuery Event object
+		 * @param  {object} clicked jQuery DOM object of the clicked Add Field button
+		 * @param  {jQueryEvent}    e     jQuery Event object
 		 */
 		addField: function ( clicked, e ) {
 			e.preventDefault();
@@ -901,7 +1024,8 @@
 				field_label: newField.find( '.gv-field-label' ).attr( 'data-original-title' ),
 				field_type: addButton.attr( 'data-objecttype' ),
 				input_type: newField.attr( 'data-inputtype' ),
-				nonce: gvGlobals.nonce,
+				form_id: vcfg.currentFormId,
+				nonce: gvGlobals.nonce
 			};
 
 			// Get the HTML for the Options <div>
@@ -977,8 +1101,15 @@
 		 * @return {void}
 		 */
 		enable_publish: function () {
+
+			/**
+			 * Added in ~ WP 3.8
+			 * @see https://github.com/WordPress/WordPress/blob/master/wp-admin/js/post.js#L365-L367
+			 */
+			$( document ).trigger( 'autosave-enable-buttons.edit-post' );
+
 			// Restore saving after settings are generated
-			$( '#publishing-action #publish' ).prop( 'disabled', null ).removeClass( 'button-primary-disabled' );
+			$( '#publishing-action').find('#publish' ).prop( 'disabled', null ).removeClass( 'button-primary-disabled' );
 		},
 
 		/**
@@ -986,7 +1117,14 @@
 		 * @return {void}
 		 */
 		disable_publish: function () {
-			$( '#publishing-action #publish' ).prop( 'disabled', 'disabled' ).addClass( 'button-primary-disabled' );
+
+			/**
+			 * Added in ~ WP 3.8
+			 * @see https://github.com/WordPress/WordPress/blob/master/wp-admin/js/post.js#L363-L364
+			 */
+			$( document ).trigger( 'autosave-disable-buttons.edit-post' );
+
+			$( '#publishing-action').find('#publish' ).prop( 'disabled', 'disabled' ).addClass( 'button-primary-disabled' );
 		},
 
 		// Sortables and droppables
@@ -1054,7 +1192,10 @@
 
 		},
 
-		// Event handler to remove Fields from active areas
+		/**
+		 * Event handler to remove Fields from active areas
+		 * @param {jQueryEvent} e
+		 */
 		removeField: function ( e ) {
 
 			e.preventDefault();
@@ -1084,7 +1225,10 @@
 
 		},
 
-		// Event handler to open dialog with Field Settings
+		/**
+		 * Event handler to open dialog with Field Settings
+		 * @param {jQueryEvent} e
+		 */
 		openFieldSettings: function ( e ) {
 			e.preventDefault();
 
@@ -1114,7 +1258,10 @@
 
 		},
 
-		// Check the "only visible to..." checkbox if the capability isn't public
+		/**
+		 * @param {jQueryEvent} e Check the "only visible to..." checkbox if the capability isn't public
+		 * @param {bool} first_run Is this the first run (on load)?
+		 */
 		updateVisibilitySettings: function ( e, first_run ) {
 
 			var vcfg = viewConfiguration;
@@ -1134,6 +1281,7 @@
 			// Toggle Source URL fields
 			vcfg.toggleVisibility( $( 'input:checkbox[name*=link_to_source]', $parent ), $( '[name*=source_link_text]', $parent ), first_run );
 
+			$( ".gv-setting-list", $parent ).trigger( 'change' );
 
 			$( 'input:checkbox', $parent ).attr( 'disabled', null );
 
@@ -1178,7 +1326,7 @@
 		 * - Make sure there is a GF Form selected. If doing Start Fresh, calls `createPresetForm()` to create the GF form for the template ID.
 		 * - Serializes the field data so that the request isn't too large
 		 *
-		 * @param  {[type]} e [description]
+		 * @param  {jQueryEvent} e [description]
 		 * @return {boolean}   True: success; False: stuff didn't work out.
 		 */
 		processFormSubmit: function ( e ) {
@@ -1210,14 +1358,17 @@
 		 *
 		 * To fix issues where there are too many array items, causing PHP max_input_vars threshold to be met
 		 *
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * @param  {jQueryEvent} e jQuery event object
+		 *
+		 * @return {false}
 		 */
 		serializeForm: function ( e ) {
 
 			if ( $( e.target ).data( 'gv-valid' ) ) {
 				return true;
 			}
+
+			var $post = $('#post');
 
 			e.stopImmediatePropagation();
 
@@ -1227,12 +1378,12 @@
 			 * Add slashes to date fields so stripslashes doesn't strip all of them
 			 * {@link http://phpjs.org/functions/addslashes/}
 			 */
-			$( '#post input[name*=date_display]' ).val( function () {
+			$post.find( 'input[name*=date_display]' ).val(function() {
 				return $( this ).val().replace( /[\\"']/g, '\\$&' ).replace( /\u0000/g, '\\0' );
-			} );
+			});
 
 			// Get all the fields where the `name` attribute start with `fields`
-			var $fields = $( '#post :input[name^=fields]' );
+			var $fields = $post.find( ':input[name^=fields]' );
 
 			// Serialize the data
 			var serialized_data = $fields.serialize();
@@ -1241,8 +1392,8 @@
 			$fields.remove();
 
 			// Add a field to the form that contains all the data.
-			$( '#post' ).append( $( '<input/>', {
-				'name': 'fields',
+			$post.append( $( '<input/>', {
+				'name': 'gv_fields',
 				'value': serialized_data,
 				'type': 'hidden'
 			} ) );
@@ -1265,6 +1416,10 @@
 		 * This is done just before the Publish click is registered.
 		 *
 		 * @see GravityView_Admin_Views::create_preset_form()
+		 *
+		 * @param {jQueryEvent} e
+		 * @param {string} templateId Template ID
+		 *
 		 * @return boolean|void
 		 */
 		createPresetForm: function ( e, templateId ) {
@@ -1327,12 +1482,31 @@
 		templateId: null,
 
 		/**
+		 * Holds the tabbed Settings metabox container
+		 */
+		metaboxObj: null,
+
+		/**
 		 * Init method
 		 */
-		init: function () {
+		init: function() {
+
+			viewGeneralSettings.metaboxObj = $( '#gravityview_settings' );
+
+			// Init general settings tabs
+			viewGeneralSettings.initTabs();
 
 			// Conditional display general settings & trigger display settings if template changes
-			$( '#gravityview_directory_template' ).change( viewGeneralSettings.updateSettingsDisplay ).trigger( 'change' );
+			$('#gravityview_directory_template')
+				.change( viewGeneralSettings.updateSettingsDisplay )
+				.trigger('change');
+
+			$('body')
+				// Enable a setting tab (since 1.8)
+				.on('gravityview/settings/tab/enable', viewGeneralSettings.enableSettingTab )
+
+				// Disable a setting tab (since 1.8)
+				.on('gravityview/settings/tab/disable', viewGeneralSettings.disableSettingTab );
 
 		},
 
@@ -1366,10 +1540,90 @@
 				row.hide();
 			}
 
+		},
+
+		/**
+		 * Set up the settings metabox vertical tabs
+		 *
+		 * @since 1.8
+		 * @return {void}
+		 */
+		initTabs: function() {
+
+			viewGeneralSettings.metaboxObj
+				// What happens after tabs are generated
+				.on( 'tabscreate', viewGeneralSettings.tabsCreate )
+
+				// Force the sort metabox to be directly under the view configuration. Damn 3rd party metaboxes!
+				.insertAfter( $('#gravityview_view_config') )
+
+				// Make vertical tabs
+				.tabs()
+				.addClass( "ui-tabs-vertical ui-helper-clearfix" )
+				.find('li')
+				.removeClass( "ui-corner-top" );
+
+		},
+
+		/**
+		 * After creating the Tabs we need to do a few tweaks to make it look good
+		 *
+		 * @since 1.8
+		 *
+		 * @param {jQueryEvent} event jQuery Event
+		 * @param {Object} ui jQuery UI Tab element, with: `ui.tab` and `ui.panel`
+		 *
+		 * @return {void}
+		 */
+		tabsCreate: function( event, ui ){
+			var $container = $( this ),
+				$panels = $container.find( '.ui-tabs-panel' ),
+				max = [];
+
+			$panels.each( function(){
+				max.push( $( this ).outerHeight( true ) );
+			} ).css( { 'min-height': _.max( max ) } );
+		},
+
+		/**
+		 * Enable a tab in the settings metabox
+		 *
+		 * Useful for when switching View types that support a type of setting (DataTables)
+		 *
+		 * @since 1.8
+		 *
+		 * @param {jQueryEvent} e jQuery Event
+		 * @param {jQuery} tab DOM of tab to enable
+		 *
+		 * @return {void}
+		 */
+		enableSettingTab: function( e, tab ) {
+
+			viewGeneralSettings.metaboxObj
+				.tabs('enable', $( tab ).attr('id') );
+
+		},
+
+		/**
+		 * Disable a tab in the settings metabox
+		 *
+		 * Useful for when switching View types that may not support a type of setting (DataTables)
+		 *
+		 * @since 1.8
+		 *
+		 * @param {jQueryEvent} e jQuery Event
+		 * @param {jQuery} tab DOM of tab to enable
+		 *
+		 * @return {void}
+		 */
+		disableSettingTab: function( e, tab ) {
+
+			viewGeneralSettings.metaboxObj
+				.tabs('disable', $( tab ).attr('id') );
+
 		}
 
 	};  // end viewGeneralSettings object
-
 
 	jQuery( document ).ready( function ( $ ) {
 
@@ -1406,14 +1660,6 @@
 				$.cookie( cookie_key, ui.newTab.index(), { path: gvGlobals.cookiepath } );
 			}
 		} );
-
-		// Make zebra table rows
-		$( '#gravityview_template_settings .form-table tr:even, #gravityview_sort_filter .form-table tr:even' ).addClass( 'alternate' );
-
-
-		// Force the sort metabox to be directly under the view configuration.
-		// Damn 3rd party metaboxes!
-		$( '#gravityview_sort_filter' ).insertAfter( $( '#gravityview_view_config' ) );
 
 	} );
 

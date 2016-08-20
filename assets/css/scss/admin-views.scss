@@ -12,6 +12,7 @@
 @import "admin-widgets-php";
 @import "admin-merge-tags";
 @import "admin-tooltips";
+@import "admin-metabox";
 
 // http://blog.teamtreehouse.com/a-better-clearfix-with-sass
 %clearfix {
@@ -270,6 +271,7 @@ $gv-overlay-index: 10000;
 	.row-actions {
 		visibility: visible;
 		padding: 0;
+		left: auto;
 	}
 	.gv-form-title {
 		display: none;
@@ -303,8 +305,7 @@ $gv-overlay-index: 10000;
 /**
  * Sidebar Widget: View Settings
  */
-#gravityview_template_settings th,
-#gravityview_sort_filter th {
+#gravityview_settings th {
 	white-space: nowrap;
 	font-weight: normal;
 	max-width: 200px; // Default th width in forms.css
@@ -324,8 +325,14 @@ $gv-overlay-index: 10000;
 }
 
 /** Show spinner cursor while the View is being AJAX updated. **/
-.gv-wait {
+.gv-wait,
+.gv-wait a {
   cursor: wait;
+}
+
+// Fix issue with theme conflicts where .gv-overlay gets in the way
+.ui-front {
+  z-index: $gv-overlay-index + 1;
 }
 
 /** View configuration tabs */
@@ -334,11 +341,6 @@ $gv-overlay-index: 10000;
 	padding: .1em;
 	zoom: 1;
 	margin-top: 1em;
-
-	// Fix issue with theme conflicts where .gv-overlay gets in the way
-	.ui-front {
-		z-index: $gv-overlay-index + 1;
-	}
 
 	.ui-tabs-nav {
 		margin: 0;
@@ -353,7 +355,7 @@ $gv-overlay-index: 10000;
 			list-style: none;
 			float: left;
 			position: relative;
-			top: 1px;
+			top: 2px;
 			margin: 0 .2em 1px 0;
 			border-bottom: 0;
 			padding: 0;
@@ -366,6 +368,7 @@ $gv-overlay-index: 10000;
 				padding: .5em 1em;
 				text-decoration: none;
 				font-size: 14px;
+				font-weight: 400;
 
 				&:link, &:visited, &:hover, &:active, &:focus {
 				  outline: none;
@@ -414,6 +417,7 @@ $gv-overlay-index: 10000;
 }
 
 .gv-dialog {
+	position: absolute;
 	z-index: $gv-overlay-index + 1;
 }
 
@@ -691,8 +695,17 @@ hr {
 	width: 90%;
 	padding: 10px 0 !important;
 
+    /** @since 1.8 **/
+    .subtitle {
+      margin: 0 15px .8em;
+      padding: .5em 0 .8em;
+      border-bottom: 1px solid #eee;
+    }
+
 	&.gv-dialog-warning p {
 		font-size: 1.1em;
+        margin: 0 !important;
+        padding: 1.5em !important;
 	}
 
 	&.gv-dialog-warning .dashicons {
@@ -705,11 +718,6 @@ hr {
 		color: #ddd;
 	}
 
-	p {
-		margin: 0 !important;
-		padding: 1.5em !important;
-	}
-
 	// Each setting row ( Used to be ul and ul li )
 	.gv-setting-container {
 		@extend %clearfix;
@@ -719,6 +727,11 @@ hr {
 		display: block;
 		font-size: 1.1em;
 		clear: left;
+
+		// Hide search mode by default
+		&.gv-setting-container-search_mode {
+		  display: none;
+		}
 
 		&:last-child {
 			// border-bottom: none;
@@ -730,10 +743,47 @@ hr {
 			font-weight: normal;
 			display: inline-block;
 			padding-right: .75em;
+			max-width: 100%; // Fix https://github.com/katzwebservices/GravityView-AZ-Filters/issues/14
 		}
 
 		.howto {
 			margin: 0 0 .25em;
+		}
+
+		/**
+		  * This fixes the horrible italic lowercase L issue
+		  * @see https://secure.helpscout.net/conversation/100064704/2718/
+		  */
+		code {
+			font-style: normal!important;
+		}
+
+		// Vertically stacked radios
+		&.gv-setting-container-choice_display .gv-label-radio {
+			display: block;
+			margin: .5em 0;
+		}
+	}
+
+	// Currently only used in "checkboxes" field type
+	fieldset legend {
+		font-size: 1.1em;
+		padding-bottom: .2em;
+	}
+
+	// Grouped <ul> in "checkboxes" field type
+	.gv-setting-list {
+		@extend %clearfix;
+
+		li {
+			list-style: none;
+			display: block;
+			padding: .2em .2em .4em;
+
+			// Dependent settings
+			&.gv-sub-setting {
+				padding-left: 1.7em;
+			}
 		}
 	}
 
@@ -750,10 +800,11 @@ hr {
 
 }
 
-.gv-widget-search-fields, .gv-dialog-options {
+.gv-widget-search-fields, .postbox .gv-dialog-options {
 
 	table {
 		padding-bottom: 15px;
+	  	margin: .5em auto; // Give rows some breathing room around other settings
 
 		td, th {
 			text-align: left;
@@ -835,6 +886,7 @@ hr {
 		text-align: center;
 		font-size: 16px;
 		line-height: 20px;
+		padding: 0 40px; // When there's error text, have it be narrow
 		display: block;
 
 		.spinner {

@@ -10,34 +10,56 @@ module.exports = function(grunt) {
 
 		sass: {
 			options: {
-				outputStyle: 'compressed'
+				style: 'compressed',
+				sourcemap: 'none'
 			},
 			dist: {
 				files: [{
 		          expand: true,
 		          cwd: 'assets/css/scss',
-		          src: ['*.scss','!admin-merge-tags.scss','!admin-tooltips.scss'],
+		          src: ['*.scss','!admin-merge-tags.scss','!admin-tooltips.scss','!admin-metabox-panel.scss','!admin-metabox.scss','!admin-members-plugin.scss'],
 		          dest: 'assets/css',
 		          ext: '.css'
 		      }]
+			},
+			extensions: {
+				files: [{
+					expand: true,
+					cwd: 'includes/extensions/entry-notes/assets/css/source',
+					src: ['*.scss'],
+					dest: 'includes/extensions/entry-notes/assets/css',
+					ext: '.css'
+				}]
 			},
 			templates: {
 				files: [{
 		          expand: true,
 		          cwd: 'templates/css/source/',
-		          src: ['*.scss','!search.scss','!edit.scss','!font.scss','!notice.scss','!oembed.scss','!responsive.scss'],
+		          src: ['*.scss','!search-flexbox.scss','!edit.scss','!font.scss','!notice.scss','!oembed.scss','!responsive.scss'],
 		          dest: 'templates/css/',
 		          ext: '.css'
 		      }]
+			},
+			docs: {
+				files: [{
+					expand: true,
+					cwd: 'docs/',
+					src: ['*.scss'],
+					dest: 'docs/',
+					ext: '.css'
+				}]
 			}
 		},
 
 		jshint: [
 			"assets/js/admin-views.js",
+			"assets/js/admin-edd-license.js",
 			"assets/js/admin-post-edit.js",
 			"assets/js/admin-widgets.js",
 			"assets/js/admin-entries-list.js",
-			"assets/js/fe-views.js"
+			"assets/js/fe-views.js",
+			"includes/extensions/entry-notes/assets/js/entry-notes.js",
+			"includes/widgets/search-widget/assets/js/source/admin-widgets.js"
 		],
 
         imagemin: {
@@ -55,7 +77,9 @@ module.exports = function(grunt) {
         },
 
 		uglify: {
-			options: { mangle: false },
+			options: {
+				mangle: false
+			},
 			main: {
 				files: [{
 		          expand: true,
@@ -65,15 +89,34 @@ module.exports = function(grunt) {
 		          ext: '.min.js'
 		      }]
 			},
+			bower: {
+				files: [{
+					expand: true,
+					cwd: 'assets/lib',
+					extDot: 'last', // Process extension as the last dot (jquery.cookie.js)
+					src: ['**/*.js', '!**/build.js', '!**/dist/*.js', '!**/*.min.js'],
+					dest: 'assets/lib',
+					ext: '.min.js'
+				}]
+			},
+			entryNotes: {
+				files: [{
+					expand: true,
+					cwd: 'includes/extensions/entry-notes/assets/js/',
+					dest: 'includes/extensions/entry-notes/assets/js/',
+					src: ['*.js','!*.min.js'],
+					ext: '.min.js'
+				}]
+			},
 			searchExt: {
 				files: [{
 		          expand: true,
-		          cwd: 'includes/extensions/search-widget/assets/js/source/',
+		          cwd: 'includes/widgets/search-widget/assets/js/source/',
 		          src: ['*.js','!*.min.js'],
-		          dest: 'includes/extensions/search-widget/assets/js/',
+		          dest: 'includes/widgets/search-widget/assets/js/',
 		          ext: '.min.js'
 		      }]
-			},
+			}
 		},
 
 		watch: {
@@ -81,9 +124,17 @@ module.exports = function(grunt) {
 				files: ['assets/js/*.js','!assets/js/*.min.js'],
 				tasks: ['uglify:main','newer:jshint']
 			},
+			notes_js: {
+				files: ['includes/extensions/entry-notes/assets/js/*.js','!includes/extensions/entry-notes/assets/js/*.min.js'],
+				tasks: ['uglify:entryNotes','newer:jshint']
+			},
 			extension_js: {
-				files: ['includes/extensions/**/*.js','!includes/extensions/**/*.min.js'],
-				tasks: ['uglify:searchExt']
+				files: ['includes/widgets/**/*.js','!includes/widgets/**/*.min.js'],
+				tasks: ['uglify:searchExt','newer:jshint']
+			},
+			extension_scss: {
+				files: ['includes/extensions/**/*.scss'],
+				tasks: ['sass:extensions']
 			},
 			templates: {
 				files: ['templates/css/**/*.scss','!templates/css/**/*.css'],
@@ -92,6 +143,10 @@ module.exports = function(grunt) {
 			scss: {
 				files: ['assets/css/scss/*.scss'],
 				tasks: ['sass:dist']
+			},
+			docs: {
+				files: ['docs/*.scss'],
+				tasks: ['sass:docs']
 			}
 		},
 
@@ -121,7 +176,9 @@ module.exports = function(grunt) {
 			transifex: 'tx pull -a',
 
 			// Create a ZIP file
-			zip: 'python /usr/bin/git-archive-all ../gravityview.zip'
+			zip: 'git-archive-all ../gravityview.zip',
+
+			bower: 'bower install'
 		},
 
 		// Build translations without POEdit
@@ -132,7 +189,7 @@ module.exports = function(grunt) {
 					type: 'wp-plugin',
 					domainPath: '/languages',
 					updateTimestamp: false,
-					exclude: ['node_modules/.*', 'assets/.*', 'vendor/.*', 'includes/lib/xml-parsers/.*', 'includes/lib/jquery-cookie/.*', 'includes/lib/standalone-phpenkoder/.*' ],
+					exclude: ['node_modules/.*', 'assets/.*', 'tmp/.*', 'vendor/.*', 'includes/lib/xml-parsers/.*', 'includes/lib/jquery-cookie/.*', 'includes/lib/standalone-phpenkoder/.*' ],
 					potHeaders: {
 						poedit: true,
 						'x-poedit-keywordslist': true
@@ -146,10 +203,10 @@ module.exports = function(grunt) {
 						var translation,
 							excluded_meta = [
 								'GravityView',
-								'Create directories based on a Gravity Forms form, insert them using a shortcode, and modify how they output.',
-								'http://gravityview.co',
+								'The best, easiest way to display Gravity Forms entries on your website.',
+								'https://gravityview.co',
 								'Katz Web Services, Inc.',
-								'http://www.katzwebservices.com'
+								'https://www.katzwebservices.com'
 							];
 
 						for ( translation in pot.translations[''] ) {
@@ -171,7 +228,7 @@ module.exports = function(grunt) {
 		addtextdomain: {
 			options: {
 				textdomain: 'gravityview',    // Project text domain.
-				updateDomains: [ 'gravityview', 'gravityforms', 'edd_sl', 'edd' ]  // List of text domains to replace.
+				updateDomains: [ 'gravityview', 'gravity-view', 'gravityforms', 'edd_sl', 'edd' ]  // List of text domains to replace.
 			},
 			target: {
 				files: {
@@ -180,6 +237,7 @@ module.exports = function(grunt) {
 						'**/*.php',
 						'!node_modules/**',
 						'!tests/**',
+						'!tmp/**',
 						'!includes/lib/xml-parsers/**',
 						'!includes/lib/jquery-cookie/**',
 						'!includes/lib/standalone-phpenkoder/**'
@@ -193,7 +251,7 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-wp-i18n');
 
 	// Regular CSS/JS/Image Compression stuff
-	grunt.registerTask( 'default', [ 'sass', 'uglify', 'imagemin', 'watch' ] );
+	grunt.registerTask( 'default', [ 'exec:bower', 'sass', 'uglify', 'imagemin', 'watch' ] );
 
 	// Translation stuff
 	grunt.registerTask( 'translate', [ 'exec:transifex', 'potomo', 'addtextdomain', 'makepot' ] );
